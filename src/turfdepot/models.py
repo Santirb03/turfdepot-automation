@@ -1,13 +1,13 @@
 from dataclasses import dataclass
 
 
-@dataclass
+@dataclass(frozen=True)
 class GrassProduct:
     name: str
     price_per_m2: float
 
 
-@dataclass
+@dataclass(frozen=True)
 class QuoteItem:
     product: GrassProduct
     square_meters: float
