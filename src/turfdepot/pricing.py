@@ -1,20 +1,24 @@
+from decimal import Decimal, ROUND_HALF_UP
+
 from turfdepot.models import GrassProduct, QuoteItem
 
 
 DEFAULT_VAT_RATE = 0.16
 
 
+def decimal_subtotal(square_meters: Decimal, price_per_m2: Decimal) -> Decimal:
+    if not square_meters.is_finite() or square_meters <= 0:
+        raise ValueError("Los metros cuadrados deben ser mayores que cero.")
+    if not price_per_m2.is_finite() or price_per_m2 < 0:
+        raise ValueError("El precio por metro cuadrado no puede ser negativo.")
+    return (square_meters * price_per_m2).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
 def calculate_subtotal(
     square_meters: float,
     price_per_m2: float,
 ) -> float:
-    if square_meters <= 0:
-        raise ValueError("Los metros cuadrados deben ser mayores que cero.")
-
-    if price_per_m2 < 0:
-        raise ValueError("El precio por metro cuadrado no puede ser negativo.")
-
-    return round(square_meters * price_per_m2, 2)
+    return float(decimal_subtotal(Decimal(str(square_meters)), Decimal(str(price_per_m2))))
 
 
 def calculate_vat(
