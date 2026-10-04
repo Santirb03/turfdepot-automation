@@ -339,3 +339,33 @@ arrancar. Las respuestas e identificadores se conservan para evitar reprocesamie
 Verificación: **81 pruebas pasan** en Docker con PostgreSQL, usando esquemas
 aislados, incluyendo el flujo completo, descarga del PDF, mensajes concurrentes,
 reintentos, validación y compatibilidad con las cotizaciones anteriores.
+
+## GitHub Actions
+
+`.github/workflows/ci.yml` ejecuta las pruebas en cada push a `main`, pull request
+destinado a `main`, o ejecución manual desde Actions. Usa Ubuntu 24.04, Python
+3.13 y un servicio PostgreSQL 17 efímero con credenciales exclusivas de pruebas.
+No necesita secrets, AWS ni acceso a la base de datos del negocio.
+
+Instala las dependencias, ejecuta `pip check` y la suite completa. Las acciones
+están fijadas por commit, tienen permisos de lectura y cancelan ejecuciones
+anteriores de la misma rama. No realiza despliegues ni envíos por WhatsApp.
+
+CI usa **Carlito solo dentro de pytest**, mediante `--pdf-test-fonts=carlito`.
+Sus archivos y licencia SIL OFL están en `tests/assets/carlito`. El código de
+producción conserva Calibri y exige que se proporcione al desplegar. CI verifica
+datos, imágenes y cálculos del PDF; la fidelidad visual exacta se revisa con
+Calibri localmente. Ninguna prueba se omite por la ausencia de fuentes privadas.
+
+Para reproducir la suite de CI localmente:
+
+```powershell
+docker compose up -d db
+docker compose build api
+docker compose run --rm api python -m pip check
+docker compose run --rm api python -m pytest -q --pdf-test-fonts=carlito
+```
+
+El chequeo aparecerá en GitHub después de subir este workflow. Configurar una
+regla que exija ese chequeo para fusionar PRs es un paso separado; este archivo
+por sí solo no impide pushes directos a `main`.

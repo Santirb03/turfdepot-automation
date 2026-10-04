@@ -1,5 +1,6 @@
 import os
 from decimal import Decimal
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -8,6 +9,22 @@ from sqlalchemy import create_engine, text
 
 from turfdepot.core.config import Settings
 from turfdepot.main import create_app
+
+
+def pytest_addoption(parser):
+    parser.addoption("--pdf-test-fonts", choices=("calibri", "carlito"), default="calibri",
+                     help="PDF test fonts only: Calibri locally, freely licensed Carlito in CI.")
+
+
+def pytest_configure(config):
+    if config.getoption("--pdf-test-fonts") == "carlito":
+        # Register only inside pytest. Production always requires private Calibri.
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
+        font_dir = Path(__file__).parent / "assets" / "carlito"
+        for name, filename in (("TurfCalibri", "Carlito-Regular.ttf"),
+                               ("TurfCalibriBold", "Carlito-Bold.ttf")):
+            pdfmetrics.registerFont(TTFont(name, str(font_dir / filename)))
 
 
 @pytest.fixture
