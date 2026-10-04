@@ -9,7 +9,7 @@ from sqlalchemy.orm import sessionmaker
 
 from turfdepot.api.routes import health, quotes
 from turfdepot.core.config import Settings
-from turfdepot.db.models import Base
+from turfdepot.db.schema import initialize_schema
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -20,8 +20,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         try:
-            # Initial MVP schema only; create_all does not migrate existing tables.
-            Base.metadata.create_all(engine)
+            initialize_schema(engine)
             yield
         finally:
             engine.dispose()

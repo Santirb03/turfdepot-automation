@@ -4,6 +4,7 @@ from typing import Annotated
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import URL, make_url
+from turfdepot.services.catalog import approved_prices
 
 Price = Annotated[Decimal, Field(ge=0, max_digits=10, decimal_places=2, allow_inf_nan=False)]
 
@@ -16,7 +17,7 @@ class Settings(BaseSettings):
     db_user: str = "turfdepot"
     db_password: str | None = None
     db_name: str = "turfdepot"
-    garden_prices: dict[str, Price] = Field(default_factory=dict)
+    garden_prices: dict[str, Price] = Field(default_factory=approved_prices)
 
     @field_validator("garden_prices")
     @classmethod

@@ -34,6 +34,7 @@ class QuoteRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    quote_number: int
     customer_id: int
     square_meters: Decimal
     garden_type: str

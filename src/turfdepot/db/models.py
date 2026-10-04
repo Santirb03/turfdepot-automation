@@ -1,12 +1,15 @@
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Numeric, String, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Numeric, String, func, Sequence, JSON
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 class Base(DeclarativeBase):
     pass
+
+
+quote_number_sequence = Sequence("quote_number_seq", start=11001, metadata=Base.metadata)
 
 
 class Customer(Base):
@@ -30,6 +33,11 @@ class Quote(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    quote_number: Mapped[int] = mapped_column(
+        quote_number_sequence, server_default=quote_number_sequence.next_value(), unique=True
+    )
+    pdf_prices: Mapped[dict[str, str] | None] = mapped_column(JSON, nullable=True)
+    base_price_per_m2: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
     customer_id: Mapped[int] = mapped_column(ForeignKey("customers.id"), index=True)
     square_meters: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     garden_type: Mapped[str] = mapped_column(String(80))

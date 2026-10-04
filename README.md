@@ -1,6 +1,7 @@
 # TurfDepot Sales & Quote Automation Platform
 
-Milestone 1: backend de cotizaciones con FastAPI, SQLAlchemy y PostgreSQL.
+Backend de cotizaciones con FastAPI, SQLAlchemy y PostgreSQL. Incluye PDF
+personalizado y numeración comercial desde 11001.
 
 ## Ejecutar desde cero (PowerShell)
 
@@ -20,20 +21,23 @@ Si 5432 está ocupado, configura `POSTGRES_PORT=55432` y cambia también el puer
 de `DATABASE_URL` a 55432. Esto ya se hizo en el `.env` local de esta máquina para
 evitar interferir con otro proyecto; la plantilla conserva el puerto estándar.
 
-El catálogo inicialmente está vacío. En `.env`, configura `GARDEN_PRICES` como
-objeto JSON cuyas claves son tipos de jardín y cuyos valores son tarifas por m².
-Ejemplo **exclusivamente de prueba**, no tarifa comercial:
+El catálogo ahora contiene ocho modelos aprobados a partir de Cotizacion 10162.
+En `.env`, `GARDEN_PRICES` es un objeto JSON de tipo de jardín a tarifa final por m²,
+con IVA incluido. `.env.example` contiene los ocho modelos; conserva el catálogo
+completo para generar el PDF con todas las opciones. Ejemplo de un modelo:
 
 ```dotenv
-GARDEN_PRICES={"jardin_plus":"300.00"}
+GARDEN_PRICES={"san_mateo_20":"348.00"}
 ```
 
 Después de cambiarlo ejecuta `docker compose up -d --build`.
 Sin catálogo, POST devuelve 503; con un tipo desconocido, devuelve 422.
-Necesitamos del negocio: identificadores de tipos, tarifa final por m², moneda y
-confirmación de si esas tarifas ya incluyen IVA. En este milestone no se añade IVA:
-`total = subtotal + extras_total`. No hay descuentos, escalas ni mínimos implícitos.
-Los precios de extras provienen de quien llama a la API.
+Las tarifas son finales en MXN: no se les vuelve a añadir IVA. La ubicación es
+informativa y no cambia el precio. Se aplican las mismas tarifas para cualquier
+área, conforme a la confirmación del usuario. La preparación de base conserva
+$150/m² finales y se muestra como propuesta separada en la tercera página,
+sin sumarse a los totales de pasto. La API conserva extras del Milestone 1 por
+compatibilidad; para el flujo PDF usa `extras=[]`.
 
 ## Probar los endpoints
 
@@ -44,17 +48,18 @@ $body = @{
     customer_phone = '4421234567'
     customer_location = 'Juriquilla, Queretaro'
     square_meters = 45
-    garden_type = 'jardin_plus'
-    extras = @(@{ name = 'base'; price = 2500 })
+    garden_type = 'san_mateo_20'
+    extras = @()
 } | ConvertTo-Json -Depth 4
 $quote = Invoke-RestMethod http://localhost:8000/quotes -Method Post -ContentType 'application/json' -Body $body
 $quote
 Invoke-RestMethod "http://localhost:8000/quotes/$($quote.id)"
+Invoke-WebRequest "http://localhost:8000/quotes/$($quote.id)/pdf" -OutFile "Cotizacion-$($quote.quote_number).pdf"
 ```
 
-Con la tarifa ficticia anterior: subtotal 13500.00, extras 2500.00, total 16000.00.
+Con 45 m² de San Mateo 20: subtotal 15660.00, extras 0.00, total 15660.00.
 POST devuelve 201 y GET devuelve 200, o 404 si no existe el ID.
-Se devuelve `id`, `customer_id`, `square_meters`, `garden_type`, `subtotal`,
+Se devuelve `id`, `quote_number`, `customer_id`, `square_meters`, `garden_type`, `subtotal`,
 `extras_total`, `total`, `status` y `created_at` (UTC).
 Los decimales se serializan como cadenas JSON (`"16000.00"`) para preservar precisión.
 Pydantic admite números o cadenas decimales como entrada. Rechaza importes negativos,
@@ -76,16 +81,25 @@ src/turfdepot/
   db/
     database.py            # Una sesión SQLAlchemy por solicitud
     models.py              # Tablas Customer, Quote, QuoteExtra y relaciones
+    schema.py              # Actualización aditiva para folio y tarifas del PDF
   schemas/quote.py         # Contratos de entrada y salida Pydantic
   services/
     pricing.py             # Catálogo, subtotal, extras y total sin DB
     quote_service.py       # Coordina cálculo y transacción de guardado
+    catalog.py             # Ocho modelos y tarifas finales aprobadas
+    pdf_service.py         # Personaliza la plantilla con valores guardados
+  assets/
+    quote-template.pdf     # Diseño original sin los datos del cliente anterior
+    fonts/                 # Calibri privada local (ignorada por Git)
 tests/
   conftest.py              # PostgreSQL aislado por esquema temporal
   test_pricing.py          # Diez pruebas originales conservadas
   test_quote_pricing.py    # Extras, redondeo, valores inválidos y catálogo
   test_quotes.py           # API, persistencia, rollback y health
   test_config.py           # Validación de configuración
+  test_pdf.py              # PDF, cálculos, fotos idénticas y precios históricos
+  test_quote_numbers.py    # Folios, concurrencia, reinicios y esquema anterior
+scripts/prepare_pdf_template.py # Regenera el fondo desde la referencia original
 .env.example               # Plantilla sin credenciales reales
 Dockerfile                 # Imagen Python, dependencias y Uvicorn
 docker-compose.yml         # API, PostgreSQL, red, healthchecks y volumen
@@ -133,9 +147,10 @@ si contiene caracteres reservados. DATABASE_URL tiene prioridad sobre DB_*.
 El volumen `postgres_data` conserva datos al recrear contenedores.
 `docker compose down` detiene y elimina contenedores, pero conserva ese volumen.
 Cambiar POSTGRES_PASSWORD en `.env` no cambia la contraseña de una DB ya inicializada.
-Al iniciar, `create_all` crea las tablas faltantes; **no realiza migraciones** de
-tablas existentes. Es suficiente para esta primera versión, no para evolucionar
-un esquema con datos en producción. No se han añadido tecnologías de milestones futuros.
+Al iniciar se crean tablas faltantes y se ejecuta una actualización aditiva
+específica para folios y tarifas del PDF. No es un sistema general de migraciones;
+cambios futuros del esquema requerirán actualizaciones adicionales. La aplicación
+permanece sin bot, WhatsApp, AWS ni frontend.
 
 ## Python local y tests
 
@@ -187,7 +202,7 @@ Solo pruebas unitarias, sin PostgreSQL:
 Referencias oficiales: [transacciones SQLAlchemy](https://docs.sqlalchemy.org/en/20/orm/session_transaction.html)
 y [tests del lifespan de FastAPI](https://fastapi.tiangolo.com/advanced/testing-events/).
 
-## Validación de esta entrega
+## Validación histórica del Milestone 1
 
 - `docker compose up --build -d`: imagen construida y ambos servicios saludables.
 - `docker compose run --rm api python -m pytest -q -p no:cacheprovider`: 49 pruebas
@@ -202,5 +217,68 @@ y [tests del lifespan de FastAPI](https://fastapi.tiangolo.com/advanced/testing-
 Para iniciar Docker en esta máquina fue necesario apartar carpetas de sockets
 temporales averiados, conservándolas en `%LOCALAPPDATA%/Docker/run.turfdepot-backup*`
 y `%LOCALAPPDATA%/docker-secrets-engine.turfdepot-backup*`. No se borraron volúmenes,
-imágenes ni configuración. La aplicación queda con catálogo vacío hasta que
-proporciones tarifas reales; el precio 300 se utiliza exclusivamente en pruebas.
+imágenes ni configuración. En aquella etapa el catálogo estaba vacío; el precio
+300 se utiliza exclusivamente en las pruebas originales.
+
+## Etapa PDF: funcionamiento y tarifas aprobadas
+
+| garden_type | Modelo | MXN/m² con IVA incluido |
+|---|---|---:|
+| san_mateo_20 | San Mateo 20 | 348.00 |
+| san_mateo_30 | San Mateo 30 | 382.80 |
+| santa_fe_20 | Santa Fe 20 | 382.80 |
+| v_lawn_27 | V Lawn 27 | 429.20 |
+| san_mateo_40 | San Mateo 40 | 475.60 |
+| santa_fe_30 | Santa Fe 30 | 487.20 |
+| v_lawn_30 | V Lawn 30 | 475.60 |
+| v_lawn_37 | V Lawn 37 | 510.40 |
+
+Base: $150/m² finales. Se conserva como propuesta separada, igual que en la referencia.
+
+`POST /quotes` sigue guardando el modelo seleccionado y su total. Además guarda
+el catálogo de los ocho modelos y la tarifa de base para generar las tres páginas.
+`GET /quotes/{id}/pdf` recibe el **ID interno**, no el folio comercial, y descarga
+`Cotizacion-11001.pdf` (o el folio correspondiente). El PDF muestra todos los modelos.
+Sus importes provienen del catálogo guardado en esa cotización: cambiar tarifas
+posteriormente no modifica PDFs anteriores.
+
+Los folios se asignan en PostgreSQL desde 11001 con una secuencia y unicidad, incluso
+con solicitudes concurrentes. Reiniciar la API no reinicia la secuencia. Puede
+haber saltos si una transacción falla: los números consumidos no se reutilizan.
+El PDF toma su fecha de `created_at` convertido a America/Mexico_City; descargarlo
+otro día no cambia su fecha.
+
+Cotizaciones anteriores sin catálogo histórico, tipos ajenos a los ocho modelos,
+o cotizaciones con extras adicionales devuelven 409 al solicitar PDF. No se les
+asignan precios actuales por suposición y no se omiten cargos silenciosamente.
+
+El fondo conserva imágenes, logo y geometría originales. Los textos del cliente
+anterior se eliminaron físicamente del contenido; no están ocultos bajo rectángulos.
+ReportLab añade los datos variables con Calibri. Se mantienen ocho modelos y la
+página de base, con precios finales sin renglón de IVA. Se corrigió el encabezado
+accidental `#¡NOMBRE?` por `IMAGEN`.
+
+Las fuentes Calibri.ttf y Calibri-Bold.ttf están en `src/turfdepot/assets/fonts/`
+como recursos privados locales ignorados por Git. Antes de desplegar en otro
+equipo, suministra esas fuentes con su licencia. Docker las copia desde el
+directorio de trabajo. Si faltan, el endpoint responde 409 con el archivo requerido.
+Textos que no caben se rechazan explícitamente, sin truncarlos.
+
+El PDF se genera en memoria al descargarlo: no se acumulan archivos en PostgreSQL.
+`output/pdf/Cotizacion-11001-demo.pdf` es una vista previa con datos de prueba;
+no registra clientes ni consume el folio real. `scripts/prepare_pdf_template.py`
+permite regenerar el fondo desde el documento original:
+
+```powershell
+.venv/Scripts/python.exe scripts/prepare_pdf_template.py 'ruta/al/original.pdf' src/turfdepot/assets/quote-template.pdf
+```
+
+Pruebas nuevas: imágenes idénticas a las de la plantilla, ocho modelos y base,
+cálculos, datos personalizados, descarga, tarifas históricas, folios concurrentes,
+reinicios y actualización del esquema antiguo sin perder sus filas.
+
+Validación de esta etapa: 58 pruebas aprobadas contra PostgreSQL real dentro de
+Docker; tres páginas del ejemplo renderizadas y revisadas visualmente. Un aviso
+de deprecación de TestClient/httpx permanece en las dependencias de pruebas.
+`pip check`, compilación de módulos y `git diff --check` sin errores. Los cambios
+se organizan en commits locales con autorización del usuario; el push queda pendiente.

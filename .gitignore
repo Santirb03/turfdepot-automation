@@ -3,3 +3,7 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .env
+tmp/
+output/
+# Private installed fonts are supplied separately on deployment.
+src/turfdepot/assets/fonts/*.ttf

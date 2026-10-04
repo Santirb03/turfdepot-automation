@@ -13,7 +13,7 @@ def test_create_get_and_persistence(client, app, payload):
     response = client.post("/quotes", json=payload)
     assert response.status_code == 201
     body = response.json()
-    assert set(body) == {"id", "customer_id", "square_meters", "garden_type", "subtotal",
+    assert set(body) == {"id", "quote_number", "customer_id", "square_meters", "garden_type", "subtotal",
                          "extras_total", "total", "status", "created_at"}
     assert body["subtotal"] == "13500.00"
     assert body["extras_total"] == "2500.00"

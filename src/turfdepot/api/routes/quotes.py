@@ -2,12 +2,14 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Request
 from sqlalchemy.orm import Session
+from fastapi.responses import Response
 
 from turfdepot.db.database import get_session
 from turfdepot.db.models import Quote
 from turfdepot.schemas.quote import QuoteCreate, QuoteRead
 from turfdepot.services import quote_service
 from turfdepot.services.pricing import PricingNotConfigured, UnknownGardenType
+from turfdepot.services.pdf_service import PdfUnavailable, quote_pdf
 
 router = APIRouter(prefix="/quotes", tags=["quotes"])
 DatabaseSession = Annotated[Session, Depends(get_session)]
@@ -29,3 +31,15 @@ def get_quote(id: Annotated[int, Path(gt=0, le=2147483647)], session: DatabaseSe
     if quote is None:
         raise HTTPException(status_code=404, detail="Cotización no encontrada.")
     return quote
+
+
+@router.get("/{id}/pdf", response_class=Response)
+def download_pdf(id: Annotated[int, Path(gt=0, le=2147483647)], session: DatabaseSession) -> Response:
+    quote = get_quote(id, session)
+    try:
+        content = quote_pdf(quote)
+    except PdfUnavailable as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return Response(content, media_type="application/pdf", headers={
+        "Content-Disposition": f'attachment; filename="Cotizacion-{quote.quote_number}.pdf"',
+    })

@@ -1,4 +1,5 @@
 import os
+from decimal import Decimal
 from uuid import uuid4
 
 import pytest
@@ -24,6 +25,8 @@ def app():
     test_url = url.update_query_dict({"options": f"-csearch_path={schema}"})
     settings = Settings(database_url=test_url.render_as_string(hide_password=False),
                         garden_prices={"jardin_plus": "300.00"})
+    # pydantic-settings merges dicts from env; isolate tests from the real catalog.
+    settings.garden_prices = {"jardin_plus": Decimal("300.00")}
     application = create_app(settings)
     try:
         yield application
