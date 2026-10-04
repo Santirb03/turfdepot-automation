@@ -282,3 +282,60 @@ Docker; tres páginas del ejemplo renderizadas y revisadas visualmente. Un aviso
 de deprecación de TestClient/httpx permanece en las dependencias de pruebas.
 `pip check`, compilación de módulos y `git diff --check` sin errores. Los cambios
 se organizan en commits locales con autorización del usuario; el push queda pendiente.
+
+## Conversación del bot (prueba local)
+
+`POST /conversations/messages` recibe un mensaje y devuelve `reply`, `state`,
+`quote_id`, `quote_number` y `pdf_url`. Guarda el estado en PostgreSQL. Todavía
+no recibe ni envía mensajes de WhatsApp: es el flujo interno que usará la integración.
+
+En http://localhost:8000/docs abre ese endpoint y usa **Try it out**:
+
+```json
+{
+  "contact_phone": "524421234567",
+  "message_id": "ejercicio-1",
+  "text": "hola"
+}
+```
+
+Repite con el mismo `contact_phone`, cambiando `message_id` para cada mensaje:
+
+| message_id | text | Resultado |
+| --- | --- | --- |
+| ejercicio-1 | hola | Pide nombre |
+| ejercicio-2 | Santiago Rodriguez | Pide superficie o medidas |
+| ejercicio-3 | es de 30 x 22 | Calcula 660 m² y pide confirmación |
+| ejercicio-4 | sí | Pide ubicación |
+| ejercicio-5 | Corregidora | Guarda cotización y devuelve enlace al PDF |
+
+Abre `http://localhost:8000` seguido del `pdf_url` devuelto para descargarla.
+Esta prueba **sí guarda un cliente y consume un folio**. El PDF del ejercicio
+generado directamente en chat no consumió ningún folio de la base de datos.
+
+El teléfono es metadata del contacto, no una pregunta al cliente. Se normaliza
+el prefijo `+`. Solo se pide una ubicación y no afecta al precio. Las superficies
+directas (por ejemplo `40 m²`) pasan a ubicación; las dimensiones requieren sí/no.
+Un `no` permite corregir las medidas. Entradas inválidas conservan el paso actual.
+
+La cotización ofrece los ocho modelos y base opcional con las tarifas guardadas.
+Por compatibilidad con el esquema anterior, `garden_type` y `total` guardan la
+referencia interna SAN MATEO 20; **no representan una elección del cliente** ni
+un total conjunto de las ocho opciones. El documento muestra cada opción separada.
+
+Reenviar el mismo `message_id` y texto devuelve la respuesta original. Reutilizarlo
+con otro texto devuelve 409. Un bloqueo por contacto evita duplicados entre workers.
+La creación de cotización, el estado final y la respuesta se guardan juntos; si el
+catálogo está incompleto o el PDF falla, se revierte y se puede reintentar el mismo
+mensaje. PostgreSQL puede dejar huecos en folios de transacciones fallidas.
+
+Al completar, los siguientes mensajes devuelven el enlace existente. Esta etapa
+admite una cotización por contacto; todavía no implementa nuevas cotizaciones para
+el mismo contacto, correcciones posteriores, extracción libre de varios datos en
+un mensaje ni transferencia real a un asesor. El primer mensaje inicia el saludo.
+Las tablas `conversations` y `conversation_messages` se crean de forma aditiva al
+arrancar. Las respuestas e identificadores se conservan para evitar reprocesamiento.
+
+Verificación: **81 pruebas pasan** en Docker con PostgreSQL, usando esquemas
+aislados, incluyendo el flujo completo, descarga del PDF, mensajes concurrentes,
+reintentos, validación y compatibilidad con las cotizaciones anteriores.

@@ -10,21 +10,27 @@ from turfdepot.services.catalog import MODELS
 
 
 def create_quote(session: Session, data: QuoteCreate, prices: Mapping[str, Decimal]) -> Quote:
+    with session.begin():
+        quote = build_quote(session, data, prices)
+    return quote
+
+
+def build_quote(session: Session, data: QuoteCreate, prices: Mapping[str, Decimal]) -> Quote:
+    """Build within the caller's transaction, including conversation completion."""
     amounts = price_quote(data.square_meters, data.garden_type,
                           (extra.price for extra in data.extras), prices)
-    with session.begin():
-        quote = Quote(
-            pdf_prices={key: str(prices[key]) for key, _, _ in MODELS if key in prices},
-            base_price_per_m2=Decimal("150.00"),
-            customer=Customer(name=data.customer_name, phone=data.customer_phone,
-                              location=data.customer_location),
-            square_meters=data.square_meters, garden_type=data.garden_type,
-            subtotal=amounts.subtotal, extras_total=amounts.extras_total, total=amounts.total,
-            extras=[QuoteExtra(name=extra.name, price=extra.price) for extra in data.extras],
-        )
-        session.add(quote)
-        session.flush()
-        session.refresh(quote)
+    quote = Quote(
+        pdf_prices={key: str(prices[key]) for key, _, _ in MODELS if key in prices},
+        base_price_per_m2=Decimal("150.00"),
+        customer=Customer(name=data.customer_name, phone=data.customer_phone,
+                          location=data.customer_location),
+        square_meters=data.square_meters, garden_type=data.garden_type,
+        subtotal=amounts.subtotal, extras_total=amounts.extras_total, total=amounts.total,
+        extras=[QuoteExtra(name=extra.name, price=extra.price) for extra in data.extras],
+    )
+    session.add(quote)
+    session.flush()
+    session.refresh(quote)
     return quote
 
 

@@ -59,3 +59,24 @@ class QuoteExtra(Base):
     name: Mapped[str] = mapped_column(String(100))
     price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     quote: Mapped[Quote] = relationship(back_populates="extras")
+
+
+class Conversation(Base):
+    __tablename__ = "conversations"
+
+    phone: Mapped[str] = mapped_column(String(16), primary_key=True)
+    state: Mapped[str] = mapped_column(String(30), default="name")
+    customer_name: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    square_meters: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    location: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    quote_id: Mapped[int | None] = mapped_column(ForeignKey("quotes.id"), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class ConversationMessage(Base):
+    __tablename__ = "conversation_messages"
+
+    phone: Mapped[str] = mapped_column(ForeignKey("conversations.phone"), primary_key=True)
+    message_id: Mapped[str] = mapped_column(String(200), primary_key=True)
+    request_text: Mapped[str] = mapped_column(String(1000))
+    response: Mapped[dict] = mapped_column(JSON)

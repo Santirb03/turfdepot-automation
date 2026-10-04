@@ -7,7 +7,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
-from turfdepot.api.routes import health, quotes
+from turfdepot.api.routes import health, quotes, conversations
 from turfdepot.core.config import Settings
 from turfdepot.db.schema import initialize_schema
 
@@ -31,6 +31,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.session_factory = sessionmaker(engine, expire_on_commit=False)
     app.include_router(health.router)
     app.include_router(quotes.router)
+    app.include_router(conversations.router)
 
     @app.exception_handler(SQLAlchemyError)
     async def database_error(request: Request, exc: SQLAlchemyError) -> JSONResponse:
