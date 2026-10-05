@@ -16,12 +16,19 @@ services:
       retries: 20
   api:
     build: .
-    environment:
+    environment: &api_environment
       DB_HOST: db
       DB_USER: ${POSTGRES_USER:-turfdepot}
       DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
       DB_NAME: ${POSTGRES_DB:-turfdepot}
       GARDEN_PRICES: '${GARDEN_PRICES:-{}}'
+      WHATSAPP_ENABLED: ${WHATSAPP_ENABLED:-false}
+      WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
+      WHATSAPP_API_VERSION: ${WHATSAPP_API_VERSION:-}
+      WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN:-}
+      WHATSAPP_APP_SECRET: ${WHATSAPP_APP_SECRET:-}
+      WHATSAPP_VERIFY_TOKEN: ${WHATSAPP_VERIFY_TOKEN:-}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-}
     ports:
       - "127.0.0.1:${API_PORT:-8000}:8000"
     depends_on:
@@ -32,5 +39,14 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+  whatsapp-worker:
+    build: .
+    profiles: [whatsapp]
+    environment: *api_environment
+    command: [python, -m, turfdepot.whatsapp_worker]
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
 volumes:
   postgres_data:

@@ -27,13 +27,21 @@ def pytest_configure(config):
             pdfmetrics.registerFont(TTFont(name, str(font_dir / filename)))
 
 
+@pytest.fixture(autouse=True)
+def isolate_whatsapp_environment(monkeypatch):
+    # Real Meta credentials must not enable outbound integrations in tests.
+    for name in list(os.environ):
+        if name.startswith("WHATSAPP_") or name == "INTERNAL_API_KEY":
+            monkeypatch.delenv(name)
+
+
 @pytest.fixture
 def app():
     # Separate PostgreSQL schema per test; never drop or truncate application tables.
-    settings = Settings()
+    settings = Settings(whatsapp_enabled=False)
     database_url = os.environ.get("TEST_DATABASE_URL")
     if database_url:
-        settings = Settings(database_url=database_url)
+        settings = Settings(database_url=database_url, whatsapp_enabled=False)
     url = settings.connection_url()
     schema = "test_" + uuid4().hex
     admin = create_engine(url, connect_args={"connect_timeout": 5})
@@ -41,7 +49,7 @@ def app():
         connection.execute(text(f'CREATE SCHEMA "{schema}"'))
     test_url = url.update_query_dict({"options": f"-csearch_path={schema}"})
     settings = Settings(database_url=test_url.render_as_string(hide_password=False),
-                        garden_prices={"jardin_plus": "300.00"})
+                        garden_prices={"jardin_plus": "300.00"}, whatsapp_enabled=False)
     # pydantic-settings merges dicts from env; isolate tests from the real catalog.
     settings.garden_prices = {"jardin_plus": Decimal("300.00")}
     application = create_app(settings)

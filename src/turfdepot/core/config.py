@@ -1,7 +1,7 @@
 from decimal import Decimal
 from typing import Annotated
 
-from pydantic import Field, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import URL, make_url
 from turfdepot.services.catalog import approved_prices
@@ -18,6 +18,23 @@ class Settings(BaseSettings):
     db_password: str | None = None
     db_name: str = "turfdepot"
     garden_prices: dict[str, Price] = Field(default_factory=approved_prices)
+    whatsapp_enabled: bool = False
+    whatsapp_phone_number_id: str = Field(default="", pattern=r"^[0-9]*$")
+    whatsapp_api_version: str = Field(default="", pattern=r"^(?:v[0-9]+\.[0-9]+)?$")
+    whatsapp_access_token: SecretStr = SecretStr("")
+    whatsapp_app_secret: SecretStr = SecretStr("")
+    whatsapp_verify_token: SecretStr = SecretStr("")
+    internal_api_key: SecretStr = SecretStr("")
+
+    @model_validator(mode="after")
+    def whatsapp_configuration(self):
+        if self.whatsapp_enabled:
+            if not self.whatsapp_phone_number_id or not self.whatsapp_api_version:
+                raise ValueError("Configure WHATSAPP_PHONE_NUMBER_ID y WHATSAPP_API_VERSION.")
+            for name in ("whatsapp_access_token", "whatsapp_app_secret", "whatsapp_verify_token", "internal_api_key"):
+                if not getattr(self, name).get_secret_value().strip():
+                    raise ValueError(f"Configure {name.upper()} antes de habilitar WhatsApp.")
+        return self
 
     @field_validator("garden_prices")
     @classmethod

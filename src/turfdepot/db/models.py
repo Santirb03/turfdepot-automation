@@ -80,3 +80,19 @@ class ConversationMessage(Base):
     message_id: Mapped[str] = mapped_column(String(200), primary_key=True)
     request_text: Mapped[str] = mapped_column(String(1000))
     response: Mapped[dict] = mapped_column(JSON)
+
+
+class WhatsAppJob(Base):
+    __tablename__ = "whatsapp_jobs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    message_id: Mapped[str] = mapped_column(String(200), unique=True)
+    phone: Mapped[str] = mapped_column(String(16), index=True)
+    message_text: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    inbound_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
+    response: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    media_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    outbound_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    last_error: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

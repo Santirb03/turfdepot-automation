@@ -1,4 +1,4 @@
-"""Small, additive schema upgrade for the first PDF milestone. Never drops data."""
+"""Additive schema initialization for quotes, conversations and WhatsApp jobs."""
 from sqlalchemy import Engine, inspect, text
 
 from turfdepot.db.models import Base, quote_number_sequence

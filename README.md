@@ -369,3 +369,22 @@ docker compose run --rm api python -m pytest -q --pdf-test-fonts=carlito
 El chequeo aparecerá en GitHub después de subir este workflow. Configurar una
 regla que exija ese chequeo para fusionar PRs es un paso separado; este archivo
 por sí solo no impide pushes directos a `main`.
+
+## WhatsApp Cloud API (número de prueba)
+
+La integración oficial está preparada pero deshabilitada por defecto.
+Consulta [docs/whatsapp-setup.md](docs/whatsapp-setup.md) para crear la app de Meta,
+configurar `.env`, iniciar el worker y registrar el webhook HTTPS.
+
+El webhook `GET/POST /webhooks/whatsapp` verifica token/firma y guarda mensajes
+en PostgreSQL sin llamar a Meta dentro de la petición. El worker de Compose
+(perfil `whatsapp`) procesa la conversación y envía texto o PDF como documento.
+Al activarlo se exige una clave interna para acceder al resto de la API.
+La prueba automatizada no utiliza credenciales reales ni envía mensajes.
+
+Validación de esta etapa: **101 pruebas pasan** en Docker con PostgreSQL y fuentes
+de CI, incluyendo firma y verificación, protección de rutas, mensajes duplicados,
+cola persistente, ejercicio completo con PDF, errores de Meta y envíos inciertos.
+También se completó una prueba real con el número de prueba de Meta: recepción
+de datos del cliente, cálculo y envío automático del PDF por WhatsApp. Las
+credenciales y la URL del túnel se configuran por entorno, fuera del repositorio.
