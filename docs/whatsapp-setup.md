@@ -133,8 +133,10 @@ resolver la entrega con el cliente, `--resolve 123` lo marca resuelto y desbloqu
 el contacto; **no envía ni reenvía ningún mensaje**. No hay garantía de entrega
 exactamente una vez entre PostgreSQL y un servicio externo.
 
-El formulario sigue admitiendo una cotización por contacto. Transferencia real a
-un asesor, seguimiento comercial y nuevas cotizaciones son etapas posteriores.
+El formulario sigue admitiendo una cotización por contacto. Después de enviar el
+PDF, el bot deja de responder a ese contacto y el negocio continúa manualmente la
+conversación. El silencio se conserva al reiniciar el servicio. La asignación de
+asesores, el seguimiento comercial y nuevas cotizaciones son etapas posteriores.
 
 ## Fuentes oficiales
 

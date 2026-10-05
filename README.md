@@ -329,7 +329,8 @@ La creación de cotización, el estado final y la respuesta se guardan juntos; s
 catálogo está incompleto o el PDF falla, se revierte y se puede reintentar el mismo
 mensaje. PostgreSQL puede dejar huecos en folios de transacciones fallidas.
 
-Al completar, los siguientes mensajes devuelven el enlace existente. Esta etapa
+Después de enviar el PDF, el bot queda en silencio para que el negocio continúe
+manualmente la conversación, incluso si recibe textos, audios o imágenes. Esta etapa
 admite una cotización por contacto; todavía no implementa nuevas cotizaciones para
 el mismo contacto, correcciones posteriores, extracción libre de varios datos en
 un mensaje ni transferencia real a un asesor. El primer mensaje inicia el saludo.
@@ -382,7 +383,7 @@ en PostgreSQL sin llamar a Meta dentro de la petición. El worker de Compose
 Al activarlo se exige una clave interna para acceder al resto de la API.
 La prueba automatizada no utiliza credenciales reales ni envía mensajes.
 
-Validación de esta etapa: **101 pruebas pasan** en Docker con PostgreSQL y fuentes
+Validación de esta etapa: **107 pruebas pasan** en Docker con PostgreSQL y fuentes
 de CI, incluyendo firma y verificación, protección de rutas, mensajes duplicados,
 cola persistente, ejercicio completo con PDF, errores de Meta y envíos inciertos.
 También se completó una prueba real con el número de prueba de Meta: recepción

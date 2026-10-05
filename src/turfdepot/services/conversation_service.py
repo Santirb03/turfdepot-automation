@@ -104,7 +104,9 @@ def process_message(session: Session, data: MessageCreate, prices: dict) -> dict
                 conversation.state = "completed"
                 reply = f"¡Listo, {conversation.customer_name}! 🌱 Tu cotización {quote.quote_number} para {conversation.square_meters:f} m² en {data.text} incluye ocho modelos con IVA incluido. La preparación de base aparece por separado si tu jardín la requiere."
         else:
-            reply = "Tu cotización está lista. Puedes descargarla aquí. Si quieres contratar o tienes preguntas, te atendemos personalmente."
+            # The owner handles all conversation after the quote. Empty means
+            # no outbound message, including no follow-up PDF.
+            reply = ""
         response = {"reply": reply, "state": conversation.state, "quote_id": None,
                     "quote_number": None, "pdf_url": None}
         if conversation.quote_id:

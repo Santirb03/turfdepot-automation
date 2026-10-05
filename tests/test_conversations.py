@@ -43,7 +43,9 @@ def test_santiago_flow_pdf_and_duplicate_completion(client, app):
     assert body["state"] == "completed" and body["quote_number"] == 11001
     assert "teléfono" not in body["reply"]
     assert send(client, 5, "Corregidora").json() == body
-    assert send(client, 6, "gracias").json()["quote_id"] == body["quote_id"]
+    follow_up = send(client, 6, "gracias").json()
+    assert follow_up["quote_id"] == body["quote_id"]
+    assert follow_up["state"] == "completed" and follow_up["reply"] == ""
     pdf = client.get(body["pdf_url"])
     assert pdf.status_code == 200
     contents = "\n".join(p.extract_text() for p in PdfReader(BytesIO(pdf.content)).pages)

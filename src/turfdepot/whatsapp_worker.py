@@ -10,7 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import aliased, sessionmaker
 
 from turfdepot.core.config import Settings
-from turfdepot.db.models import Quote, WhatsAppJob
+from turfdepot.db.models import Conversation, Quote, WhatsAppJob
 from turfdepot.db.schema import initialize_schema
 from turfdepot.schemas.conversation import MessageCreate
 from turfdepot.services.conversation_service import process_message
@@ -66,12 +66,18 @@ def process_next(factory, settings, client, now):
         response = job.response
         if response is None:
             if job.message_text is None:
-                response = {"reply": "Por ahora puedo leer mensajes de texto. Escribe tu respuesta para continuar.", "quote_id": None}
+                with factory() as session:
+                    conversation = session.get(Conversation, job.phone)
+                    completed = conversation is not None and conversation.state == "completed"
+                response = {"reply": "" if completed else "Por ahora puedo leer mensajes de texto. Escribe tu respuesta para continuar.", "quote_id": None}
             else:
                 with factory() as session:
                     response = process_message(session, MessageCreate(
                         contact_phone=job.phone, message_id=job.message_id, text=job.message_text), settings.garden_prices)
             update_job(factory, job.id, response=response)
+        if not response.get("reply"):
+            update_job(factory, job.id, status="handed_off", last_error=None)
+            return True
         filename = None
         media_id = job.media_id
         if response.get("quote_id"):
