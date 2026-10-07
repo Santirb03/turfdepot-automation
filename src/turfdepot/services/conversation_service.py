@@ -57,14 +57,14 @@ def process_message(session: Session, data: MessageCreate, prices: dict) -> dict
         if conversation is None:
             conversation = Conversation(phone=phone, state="name")
             session.add(conversation)
-            reply = "¡Hola! Bienvenido a TurfDepot 🌱 ¿Cuál es tu nombre?"
+            reply = "¡Hola! 🌱 Gracias por contactar a TurfDepot. Te ayudamos a cotizar tu instalación de pasto sintético. ¿Cuál es tu nombre?"
         elif conversation.state == "name":
             if len(data.text) > 150 or not any(c.isalpha() for c in data.text):
                 reply = "¿Cuál es tu nombre? Escribe hasta 150 caracteres."
             else:
                 conversation.customer_name = data.text
                 conversation.state = "area"
-                reply = f"Mucho gusto, {data.text} 🌱 ¿Cuántos metros cuadrados tiene tu jardín? También puedes darme largo por ancho en metros."
+                reply = f"¡Gracias, {data.text}! ¿Cuántos metros cuadrados tiene tu jardín? También puedes compartirnos el largo y ancho."
         elif conversation.state == "area":
             result = parse_area(data.text)
             if result is None:
@@ -74,12 +74,12 @@ def process_message(session: Session, data: MessageCreate, prices: dict) -> dict
                 conversation.square_meters = area
                 conversation.state = "confirm_area" if confirmation else "location"
                 reply = (f"Entiendo las medidas en metros: equivalen a {area:f} m². ¿Es correcto?"
-                         if confirmation else "¿Dónde está tu jardín? Con una ubicación es suficiente.")
+                         if confirmation else "¿En dónde se encuentra tu jardín?")
         elif conversation.state == "confirm_area":
             answer = normalized(data.text)
             if answer in {"si", "correcto", "es correcto", "ok"}:
                 conversation.state = "location"
-                reply = "¿Dónde está tu jardín? Con una ubicación es suficiente."
+                reply = "¿En dónde se encuentra tu jardín?"
             elif answer in {"no", "incorrecto"}:
                 conversation.square_meters = None
                 conversation.state = "area"
@@ -102,7 +102,10 @@ def process_message(session: Session, data: MessageCreate, prices: dict) -> dict
                 conversation.location = data.text
                 conversation.quote_id = quote.id
                 conversation.state = "completed"
-                reply = f"¡Listo, {conversation.customer_name}! 🌱 Tu cotización {quote.quote_number} para {conversation.square_meters:f} m² en {data.text} incluye ocho modelos con IVA incluido. La preparación de base aparece por separado si tu jardín la requiere."
+                area_label = format(conversation.square_meters, "f")
+                if "." in area_label:
+                    area_label = area_label.rstrip("0").rstrip(".")
+                reply = f"¡Listo, {conversation.customer_name}! 🌱 Te compartimos tu cotización para {area_label} m² en {data.text}, con nuestros ocho modelos y precios con IVA incluido. Si tienes alguna pregunta o deseas agendar tu instalación, estamos a tus órdenes."
         else:
             # The owner handles all conversation after the quote. Empty means
             # no outbound message, including no follow-up PDF.
