@@ -20,6 +20,9 @@ def send(client, message_id, text, phone="524421234567"):
     ("es de 30 x 22", "660", True), ("30 metros por 22 metros", "660", True),
     ("2,5 × 4", "10", True), ("40 m²", "40", False),
     ("40 metros cuadrados", "40", False), ("tiene 12.50", "12.50", False),
+    ("son 74 metros", "74", False), ("74 m", "74", False),
+    ("74", "74", False), ("es de 74 metros", "74", False),
+    ("32 x 73", "2336", True),
 ])
 def test_area_parser(value, area, confirm):
     assert parse_area(value) == (Decimal(area), confirm)
@@ -33,7 +36,10 @@ def test_invalid_area(value):
 def test_santiago_flow_pdf_and_duplicate_completion(client, app):
     app.state.settings.garden_prices = approved_prices()
     assert send(client, 1, "hola").json()["state"] == "name"
-    assert send(client, 2, "Santiago Rodriguez").json()["state"] == "area"
+    name_response = send(client, 2, "Santiago Rodriguez").json()
+    assert name_response["state"] == "area"
+    assert name_response["reply"].startswith("¡Gracias, Santiago!")
+    assert "Rodriguez" not in name_response["reply"]
     area = send(client, 3, "es de 30 x 22").json()
     assert area["state"] == "confirm_area" and "660" in area["reply"]
     assert send(client, 4, "sí").json()["state"] == "location"
@@ -49,13 +55,16 @@ def test_santiago_flow_pdf_and_duplicate_completion(client, app):
     pdf = client.get(body["pdf_url"])
     assert pdf.status_code == 200
     contents = "\n".join(p.extract_text() for p in PdfReader(BytesIO(pdf.content)).pages)
-    assert "Santiago Rodriguez" in contents and "Corregidora" in contents
+    assert "Santiago Rodriguez" in contents and "Queretaro" in contents
+    assert "Corregidora" not in contents
     assert "229.680,00" in contents and "99.000,00" in contents
     with app.state.session_factory() as session:
         assert session.scalar(select(func.count()).select_from(Quote)) == 1
         assert session.scalar(select(func.count()).select_from(Customer)) == 1
         quote = session.get(Quote, body["quote_id"])
         assert quote.customer.phone == "524421234567"
+        assert quote.customer.location == "Corregidora"
+        assert session.get(Conversation, "524421234567").location == "Corregidora"
 
 
 def test_retry_invalid_correction_and_reopen_session(client, app):

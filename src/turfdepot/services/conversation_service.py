@@ -30,7 +30,7 @@ def parse_area(value: str) -> tuple[Decimal, bool] | None:
     number = r"([0-9]+(?:\.[0-9]{1,2})?)"
     units = r"\s*(?:m|metros)?\s*"
     dimensions = re.fullmatch(number + units + r"(?:x|×|por)\s*" + number + units, value)
-    direct = re.fullmatch(number + r"\s*(?:m²|m2|metros cuadrados)?", value)
+    direct = re.fullmatch(number + r"\s*(?:m²|m2|m|metros cuadrados|metros|metro)?", value)
     if dimensions:
         length, width = map(Decimal, dimensions.groups())
         area, confirmation = length * width, True
@@ -54,9 +54,12 @@ def process_message(session: Session, data: MessageCreate, prices: dict) -> dict
                 raise MessageConflict("El identificador del mensaje ya se usó con otro texto.")
             return previous.response
         conversation = session.get(Conversation, phone)
-        if conversation is None:
-            conversation = Conversation(phone=phone, state="name")
-            session.add(conversation)
+        if conversation is None or conversation.state == "start":
+            if conversation is None:
+                conversation = Conversation(phone=phone, state="name")
+                session.add(conversation)
+            else:
+                conversation.state = "name"
             reply = "¡Hola! 🌱 Gracias por contactar a TurfDepot. Te ayudamos a cotizar tu instalación de pasto sintético. ¿Cuál es tu nombre?"
         elif conversation.state == "name":
             if len(data.text) > 150 or not any(c.isalpha() for c in data.text):
@@ -64,7 +67,8 @@ def process_message(session: Session, data: MessageCreate, prices: dict) -> dict
             else:
                 conversation.customer_name = data.text
                 conversation.state = "area"
-                reply = f"¡Gracias, {data.text}! ¿Cuántos metros cuadrados tiene tu jardín? También puedes compartirnos el largo y ancho."
+                first_name = data.text.split()[0]
+                reply = f"¡Gracias, {first_name}! ¿Cuántos metros cuadrados tiene tu jardín? También puedes compartirnos el largo y ancho."
         elif conversation.state == "area":
             result = parse_area(data.text)
             if result is None:
@@ -105,7 +109,8 @@ def process_message(session: Session, data: MessageCreate, prices: dict) -> dict
                 area_label = format(conversation.square_meters, "f")
                 if "." in area_label:
                     area_label = area_label.rstrip("0").rstrip(".")
-                reply = f"¡Listo, {conversation.customer_name}! 🌱 Te compartimos tu cotización para {area_label} m² en {data.text}, con nuestros ocho modelos y precios con IVA incluido. Si tienes alguna pregunta o deseas agendar tu instalación, estamos a tus órdenes."
+                first_name = conversation.customer_name.split()[0]
+                reply = f"¡Listo, {first_name}! 🌱👷‍♂️ Te compartimos tu cotización para {area_label} m², con nuestros ocho modelos y precios con IVA incluido. Si tienes alguna pregunta o deseas agendar tu instalación, estamos a tus órdenes."
         else:
             # The owner handles all conversation after the quote. Empty means
             # no outbound message, including no follow-up PDF.

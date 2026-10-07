@@ -20,7 +20,8 @@ def test_pdf_all_models_and_base_without_separate_vat():
         assert name in text
     for total in ("13.920,00", "15.312,00", "17.168,00", "19.024,00", "19.488,00", "20.416,00", "6.000,00"):
         assert total in text
-    assert "Juan Pérez" in text and "Juriquilla, Querétaro" in text
+    assert "Juan Pérez" in text and "Queretaro" in text
+    assert "Juriquilla" not in text
     assert "11001" in text and "viernes 2 de octubre de 2026" in text
     assert "PREPARACIÓN DE BASE" in text
     assert "IVA" not in text

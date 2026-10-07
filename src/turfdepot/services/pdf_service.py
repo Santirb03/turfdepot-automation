@@ -125,7 +125,8 @@ def render_pdf(data: PdfQuote) -> bytes:
         if index < 2:
             draw_text(canvas, data.customer_name, 122.52, 73.2, 190)
             draw_text(canvas, meters, 122.52, 83.88, 190)
-            draw_text(canvas, data.location, 122.52, 108.12, 190)
+            # Customer location remains internal; the printed location is fixed.
+            draw_text(canvas, "Queretaro", 122.52, 108.12, 190)
             draw_text(canvas, spanish_date(data.issued_on), 373, 73.2, 170, align="right")
             draw_text(canvas, str(data.number), 403.2, 108.12, 141.24, align="center")
             # Replace the spreadsheet's accidental #¡NOMBRE? header, using the original green strip.

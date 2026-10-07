@@ -129,9 +129,13 @@ def test_santiago_receives_document_and_retries_do_not_resend(client, app):
     assert len(meta.sent) == 5 and len(meta.uploaded) == 1
     phone, reply, media_id, filename = meta.sent[-1]
     assert phone == "524421234567" and media_id == "media.1"
-    assert "Corregidora" in reply and filename == "Cotizacion-11001.pdf"
+    assert reply.startswith("¡Listo, Santiago! 🌱👷‍♂️")
+    assert "Corregidora" not in reply and "Rodriguez" not in reply
+    assert filename == "Cotizacion-11001.pdf"
     pdf = PdfReader(BytesIO(meta.uploaded[0][0]))
     contents = "\n".join(page.extract_text() for page in pdf.pages)
+    assert "Santiago Rodriguez" in contents and "Queretaro" in contents
+    assert "Corregidora" not in contents
     assert "229.680,00" in contents and "99.000,00" in contents
     assert post(client, payload("wamid.4", "Corregidora")).status_code == 200
     assert not work(app, meta)
